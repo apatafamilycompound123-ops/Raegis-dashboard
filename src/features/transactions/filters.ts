@@ -15,17 +15,28 @@ export const TRANSACTION_OPERATIONS: TransactionOperation[] = [
 
 export const TRANSACTION_STATUSES: TransactionStatus[] = ['success', 'pending', 'failed', 'unknown'];
 
-export const defaultTransactionHistoryFilters: TransactionHistoryFilters = {
+export interface TimelineTransactionHistoryFilters extends TransactionHistoryFilters {
+  /** Optional inclusive start date (ISO string) for filtering by timestamp. */
+  dateFrom?: string | null;
+  /** Optional inclusive end date (ISO string) for filtering by timestamp. */
+  dateTo?: string | null;
+}
+
+export const defaultTransactionHistoryFilters: TimelineTransactionHistoryFilters = {
   query: '',
   operations: [],
   statuses: [],
+  dateFrom: null,
+  dateTo: null,
 };
 
 export const applyTransactionFilters = (
   records: NormalizedTransaction[],
-  filters: TransactionHistoryFilters
+  filters: TimelineTransactionHistoryFilters
 ): NormalizedTransaction[] => {
   const query = filters.query.trim().toLowerCase();
+  const dateFrom = filters.dateFrom ? new Date(filters.dateFrom).getTime() : null;
+  const dateTo = filters.dateTo ? new Date(filters.dateTo).getTime() : null;
 
   return records.filter((record) => {
     const operationMatches =
@@ -41,6 +52,19 @@ export const applyTransactionFilters = (
       record.operation.toLowerCase().includes(query) ||
       (record.assetTicker ? record.assetTicker.toLowerCase().includes(query) : false);
 
-    return operationMatches && statusMatches && queryMatches;
+    const timestamp = record.timestamp ? new Date(record.timestamp).getTime() : null;
+    let dateMatches = true;
+    if (timestamp !== null) {
+      if (dateFrom !== null && timestamp < dateFrom) {
+        dateMatches = false;
+      }
+      if (dateTo !== null && timestamp > dateTo) {
+        dateMatches = false;
+      }
+    } else if (filters.dateFrom || filters.dateTo) {
+      dateMatches = false;
+    }
+
+    return operationMatches && statusMatches && queryMatches && dateMatches;
   });
 };
