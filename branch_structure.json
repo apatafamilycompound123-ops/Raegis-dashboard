@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/issue-59-implement-asset-detail-activity-timeline",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "feat/issue-59-implement-asset-detail-activity-timeline": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "feat/issue-59-implement-asset-detail-activity-timeline",
+    "origin"
+  ]
+}

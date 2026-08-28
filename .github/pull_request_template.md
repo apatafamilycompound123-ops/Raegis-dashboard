@@ -79,6 +79,11 @@ npm run lint
   | Criterion 1          | How it was met |
   | Criterion 2          | How it was met |
 
+### 7. Self-Assessment
+
+- [ ] The [Contributor Self-Assessment Form](../docs/self-assessment-checklist.md) has been completed and attached to this PR
+- **Form Location:** <!-- e.g., pasted in Reviewer Notes, attached as a file comment -->
+
 ---
 
 ## Screenshots / Recordings
