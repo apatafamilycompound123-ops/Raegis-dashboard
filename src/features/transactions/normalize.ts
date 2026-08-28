@@ -22,8 +22,8 @@ const toIsoString = (value?: string | number | Date): string => {
   return date.toISOString();
 };
 
-const inferEventOperation = (eventType: string): TransactionOperation => {
-  const lowered = eventType.toLowerCase();
+const inferEventOperation = (eventType?: string): TransactionOperation => {
+  const lowered = (eventType ?? '').toLowerCase();
   if (lowered.includes('compliance') || lowered.includes('whitelist')) return 'compliance_update';
   if (lowered.includes('mint')) return 'mint';
   if (lowered.includes('transfer')) return 'transfer';
@@ -45,7 +45,7 @@ export const normalizeTransactionRecord = (record: TransactionRecordInput): Norm
       status: record.successful === undefined ? 'unknown' : record.successful ? 'success' : 'failed',
       actor: record.signer ?? UNKNOWN_ACTOR,
       target: record.recipient ?? UNKNOWN_TARGET,
-      operation: record.action ?? 'admin_action',
+      operation: inferEventOperation(record.action),
       hash: record.txHash ?? UNKNOWN_HASH,
       timestamp: toIsoString(record.createdAt),
       source: 'sdk_receipt',
@@ -78,7 +78,7 @@ export const normalizeTransactionRecord = (record: TransactionRecordInput): Norm
     status: record.status ?? 'unknown',
     actor: record.actor ?? UNKNOWN_ACTOR,
     target: record.target ?? UNKNOWN_TARGET,
-    operation: record.operation ?? 'admin_action',
+    operation: record.operation ?? inferEventOperation(record.operation),
     hash: record.hash ?? UNKNOWN_HASH,
     timestamp: toIsoString(record.timestamp),
     source: 'placeholder',
@@ -86,5 +86,5 @@ export const normalizeTransactionRecord = (record: TransactionRecordInput): Norm
     assetTicker: record.assetTicker,
     notes: record.notes ?? record.label,
     raw: record,
-  };
+  },
 };
