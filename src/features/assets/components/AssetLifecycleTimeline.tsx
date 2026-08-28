@@ -6,8 +6,28 @@ import {
   type AssetLifecycleState,
 } from '@/lib/assetLifecycle';
 
+type AssetActivityType =
+  | 'registration'
+  | 'minting'
+  | 'transfer'
+  | 'compliance'
+  | 'admin';
+
+interface AssetActivityEvent {
+  id: string;
+  type: AssetActivityType;
+  description: string;
+  occurredAt: string;
+  explorerLink?: string;
+}
+
 interface AssetLifecycleTimelineProps {
   status: AssetLifecycleStatus;
+  /**
+   * Additional asset activity (minting, transfer, compliance, admin, etc.)
+   * to display alongside lifecycle state changes.
+   */
+  activities?: AssetActivityEvent[];
   /**
    * When provided, renders a button for each allowed next state and calls
    * this with the chosen state on click. Omit for a read-only view (e.g. the
@@ -18,9 +38,35 @@ interface AssetLifecycleTimelineProps {
   onTransition?: (next: AssetLifecycleState) => void;
 }
 
-export default function AssetLifecycleTimeline({ status, onTransition }: AssetLifecycleTimelineProps) {
+export default function AssetLifecycleTimeline({
+  status,
+  activities,
+  onTransition,
+}: AssetLifecycleTimelineProps) {
   const allowedNext = getAllowedNextStates(status.current);
   const currentInfo = LIFECYCLE_STATE_INFO[status.current];
+
+  const lifecycleEvents = status.history.map((event, i) => ({
+    id: `${event.state}-${event.occurredAt}-${i}`,
+    timestamp: event.occurredAt,
+    label: LIFECYCLE_STATE_INFO[event.state].label,
+    note: event.note,
+    explorerLink: undefined,
+    type: 'lifecycle' as const,
+  }));
+
+  const activityEvents = (activities ?? []).map((activity) => ({
+    id: activity.id,
+    timestamp: activity.occurredAt,
+    label: activity.description,
+    note: undefined,
+    explorerLink: activity.explorerLink,
+    type: activity.type,
+  }));
+
+  const timelineEvents = [...lifecycleEvents, ...activityEvents].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 
   return (
     <div className="space-y-4">
@@ -31,18 +77,39 @@ export default function AssetLifecycleTimeline({ status, onTransition }: AssetLi
 
       <p className="text-sm text-slate-600">{currentInfo.detail}</p>
 
-      <ol className="space-y-2 border-l-2 border-slate-200 pl-4">
-        {status.history.map((event, i) => {
-          const info = LIFECYCLE_STATE_INFO[event.state];
-          return (
-            <li key={`${event.state}-${event.occurredAt}-${i}`} className="text-sm">
-              <span className="font-medium text-slate-800">{info.label}</span>
-              <span className="text-slate-400"> &middot; {new Date(event.occurredAt).toLocaleDateString()}</span>
+      {timelineEvents.length > 0 ? (
+        <ol className="space-y-2 border-l-2 border-slate-200 pl-4">
+          {timelineEvents.map((event) => (
+            <li key={event.id} className="text-sm">
+              {event.explorerLink ? (
+                <a
+                  href={event.explorerLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  <span className="font-medium text-slate-800">{event.label}</span>
+                  <span className="text-slate-400"> &middot; {new Date(event.timestamp).toLocaleDateString()}</span>
+                  {event.type !== 'lifecycle' && (
+                    <span className="ml-2 text-xs uppercase tracking-wide text-slate-400">{event.type}</span>
+                  )}
+                </a>
+              ) : (
+                <>
+                  <span className="font-medium text-slate-800">{event.label}</span>
+                  <span className="text-slate-400"> &middot; {new Date(event.timestamp).toLocaleDateString()}</span>
+                  {event.type !== 'lifecycle' && (
+                    <span className="ml-2 text-xs uppercase tracking-wide text-slate-400">{event.type}</span>
+                  )}
+                </>
+              )}
               {event.note && <p className="text-slate-500">{event.note}</p>}
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-sm text-slate-400">No asset activity is available.</p>
+      )}
 
       {onTransition && allowedNext.length > 0 && (
         <div>
