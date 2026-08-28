@@ -106,6 +106,15 @@ when lifecycle data could not be resolved.
 - Full suite (`npm run test`) passes at 325/325 after this change, with zero
   regressions to any pre-existing test.
 
+## Asset Detail Activity Timeline
+
+Asset detail pages also surface an activity timeline that captures registration, minting, transfer, compliance, and admin events where the connected data sources provide them. This timeline is distinct from the lifecycle status described above — lifecycle is a single state machine, while activity is a chronological list.
+
+### Data Source Limitations
+- Events are only shown when the underlying source (e.g., minting records, transfer history, compliance logs, admin actions) actually supplies them. If a source is unavailable or not enabled for a particular asset, the timeline shows an explicit empty state — it never fabricates or infers an event that might have existed.
+- On-chain transfer and minting events may depend on block explorer or indexer availability. When explorer links cannot be constructed, the UI still displays the event but without a link.
+- Off-chain compliance and admin events are only included if the backing data is present. Assets created before this feature was introduced may have no history for these event types.
+
 ## Related Documentation
 - [Investor Transfer Eligibility](investor-transfer-eligibility.md) — per-wallet eligibility gating (Issue #55)
 - [Investor Transfer Request Flow](investor-transfer-request-flow.md) — request-validation layer (Issue #41)
