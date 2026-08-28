@@ -6,10 +6,10 @@
  * from two things that already exist elsewhere in this codebase and are
  * NOT duplicated here:
  *
- *  - `src/fixtures/issuer.ts` `IssuanceRequest.status` — the PRE-mint
+ *  - `src/fixtures/issuer.ts` `IssuanceRequest.status` -- the PRE-mint
  *    approval workflow (draft/pending/approved/minted/rejected). Lifecycle
  *    state only begins once an asset reaches 'minted' there.
- *  - `src/lib/eligibility.ts` — per-wallet TRANSFER eligibility. Lifecycle
+  *  - `src/lib/eligibility.ts` -- per-wallet TRANSFER eligibility. Lifecycle
  *    state is asset-wide and issuer-driven; a paused asset will usually also
  *    affect eligibility (via the existing `assetPaused` flag), but this
  *    module does not compute eligibility itself.
@@ -17,6 +17,12 @@
  * IMPORTANT (compliance wording): lifecycle state reflects issuer-reported
  * status, not a legal or financial determination about the asset or its
  * performance. See docs/asset-lifecycle-status.md.
+ *
+ * The module also includes a generic activity timeline model for asset
+ * detail pages. See the "Asset activity timeline" section below. That
+ * section intentionally does not fetch data; it defines the shape of timeline
+ * events and pure conversion/filter helpers. Concrete data sources should
+ * map their data to `AssetActivityEvent` and set `explorerUrl` when available.
  */
 
 export type AssetLifecycleState = 'active' | 'paused' | 'matured' | 'redeemed' | 'defaulted';
@@ -31,7 +37,7 @@ export interface AssetLifecycleEvent {
 
 export interface AssetLifecycleStatus {
   current: AssetLifecycleState;
-  /** ISO 8601 timestamp the asset entered `current`. */
+  /** ISO 8601 timestamp the asset entered `current`-. */
   since: string;
   /** Ordered oldest-first. Always includes at least the current event. */
   history: AssetLifecycleEvent[];
@@ -169,7 +175,7 @@ export function applyLifecycleTransition(
   to: AssetLifecycleState,
   occurredAt: string,
   note?: string
-): ApplyTransitionResult {
+d: ApplyTransitionResult {
   const validation = validateTransition(status.current, to);
   if (!validation.valid) {
     return { ok: false, reason: validation.reason };
@@ -185,3 +191,100 @@ export function applyLifecycleTransition(
     },
   };
 }
+
+// -------------------------------------------------------------------------------------------------------
+
+/**
+ * Asset activity timeline model for RWA tokens. (Issue #30)
+ *
+ * Complements the lifecycle state machine above. While lifecycle state focuses
+ * on issuer-controlled operational state (active/paused/...), this model is
+ * a generic timeline of *all* asset activity: lifecycle transitions, minting,
+ * transfers, compliance events, and admin actions.
+ *
+ * Sources are intentionally abstracted. A concrete implementation (e.g., a
+ * REST API or blockchain indexer) should map its raw data into
+ * `AssetActivityEvent` objects. The pure helpers here provide mapping
+ * from lifecycle status, filtering, and empty-state handling.
+ */
+
+export type AssetActivityType = 'mint' | 'transfer' | 'compliance' | 'admin' | 'lifecycle';
+
+export interface AssetActivityEvent {
+  id: string;
+  type: AssetActivityType;
+  title: string;
+  description?: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** Visual tone, reused from lifecycle. */
+  tone?: LifecycleTone;
+  /** Optional link to a block explorer. */
+  explorerUrl?: string;
+  /** Additional structured data (e.g., amount, from/to for transfers). */
+  metadata?: Record<string, unknown>;
+}
+
+/** Convert an AssetLifecycleEvent into an AssetActivityEvent of type 'lifecycle'. */
+export function lifecycleEventToActivity(
+  event: AssetLifecycleEvent,
+  assetId?: string
+): AssetActivityEvent {
+  const info = LIFECYCLE_STATE_INFO[event.state];
+  return {
+    id: `lifecycle-${event.occurredAt}-${event.state}`,
+    type: 'lifecycle',
+    title: `Lifecycle: ${info.label}`,
+    description: event.note ?? info.detail,
+    timestamp: event.occurredAt,
+    tone: info.tone,
+    metadata: {
+      state: event.state,
+      assetId,
+      ...(event.note ? { note: event.note } : {}),
+    },
+  };
+}
+
+/** Map an AssetLifecycleStatus.history to a timeline ready for display. */
+export function lifecycleHistoryToTimeline(
+  status: AssetLifecycleStatus,
+  assetId?: string
+d: AssetActivityEvent[] {
+  return status.history.map((event) => lifecycleEventToActivity(event, assetId));
+}
+
+/** Filter timeline events by one or more types. */
+export function filterActivityByType(
+  events: AssetActivityEvent[],
+  types: AssetActivityType | AssetActivityType[]
+): AssetActivityEvent[] {
+  const allowed = Array.isArray(types) ? types : [types];
+  return events.filter((event) => allowed.includes(event.type));
+}
+
+/** Returns events sorted newest-first (by timestalp). */
+export function sortActivityNewestFirst(events: AssetActivityEvent[]): AssetActivityEvent[] {
+  return [...events].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+/** Empty-state copy for each activity type. */
+export const EMPTY_ACTIVITY_MESSAGES: Record<AssetActivityType, string> = {
+  mint: 'No mint activity recorded for this asset.',
+  transfer: 'No transfers recorded for this asset.',
+  compliance: 'No compliance events recorded for this asset.',
+  admin: 'No admin actions recorded for this asset.',
+  lifecycle: 'No lifecycle events recorded for this asset.',
+};
+
+/** Get a human-readable empty-state message for the given type. */
+export function getEmptyActivityMessage(type: AssetActivityType): string {
+  return EMPTY_ACTIVITY_MESSAGES[type];
+}
+
+/**
+ * Message used when the activity data source is unavailable (e.g., an external
+ * api down). This is distinct from an empty state where the source is up
+ * but has no records for this asset.
+ */
+export const ACTIVITY_UNAVAILABLE_MESSAGE = 'Activity data is not available for this asset.';
