@@ -32,7 +32,7 @@ export interface SdkReceiptRecord {
   signer?: string;
   recipient?: string;
   createdAt?: string | number | Date;
-  action?: 'compliance_update' | 'mint' | 'transfer' | 'asset_registration' | 'admin_action';
+  action?: 'compliance_update' | 'mint' | 'asset_registration' | 'admin_action';
   amount?: number;
   assetTicker?: string;
   notes?: string;
@@ -73,4 +73,28 @@ export interface TransactionHistoryFilters {
   query: string;
   operations: TransactionOperation[];
   statuses: TransactionStatus[];
+}
+
+export interface ExplorerLink {
+  url: string;
+  label?: string;
+}
+
+export type ActivityTimelineCategory =
+  | 'transaction'
+  | 'compliance'
+  | 'admin'
+  | 'unknown';
+
+export type ActivityTimelineState = 'available' | 'empty' | 'unavailable';
+
+export interface ActivityTimeline {
+  assetTicker?: string;
+  events: NormalizedTransaction[];
+  state: ActivityTimelineState;
+  stateReason?: string;
+}
+
+export interface ActivityTimelineFilters extends TransactionHistoryFilters {
+  categories: ActivityTimelineCategory[];
 }
